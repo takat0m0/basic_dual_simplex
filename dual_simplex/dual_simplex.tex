@@ -1,0 +1,521 @@
+% -*- coding:utf-8 -*-
+
+\documentclass[11pt, a4]{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{ascmac}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+
+\title{dual simplex法の基礎}
+
+\begin{document}
+\maketitle
+
+\section{双対性}
+dual simplex を説明するためには，当然 dual を説明する必要がある．
+dual については，数学的に色々面白い話があるが，
+ここではそれら厳密な話を全てすっとばして，
+気分的な紹介にとどめる\footnote{というか，ちゃんとやろうとすると凸解析を一からやる必要があるので無理ゲーすぎる．}．
+
+以下の線形計画問題を考える．
+\begin{eqnarray}
+  &\min_{x}&\ c^Tx\nonumber\\
+  &s.t.&\ \sum_jA_{ij}x_j \geq b_i\ (i \in \{1, \cdots, m\}) , \nonumber\\
+  &\ &\ x\geq 0, x \in \mathbb{R}^n
+  \label{geq_LP}
+\end{eqnarray}
+勿論，$c \in \mathbb{R}^n$, $A \in \mathbb{R}^{m\times n}$, $b\in \mathbb{R}^m$ である．
+
+ここで，ちょっとだらけたことを考える．何を考えるのかというと，
+「制約がきつすぎるので，制約を完全に満たすのではなく，そこそこ満たしていて良い感じの解がほしい」ということを考える．
+そのような際に有用な方法として，緩和がある．例えば (\ref{geq_LP}) 式であれば，
+以下がそのような緩和になる．
+\begin{eqnarray}
+  &\min_{x}&\ c^Tx - y^T(Ax - b)\nonumber\\
+  &s.t.&\ x\geq 0, x \in \mathbb{R}^n
+  \label{relaxed_LP}
+\end{eqnarray}
+ここに $y$ は，$y \geq 0$ なとりあえずパラメータである（あとで，このパラメータも最適化することを考えるがまずは説明のためにパラメータと思ってもらって OK）．
+
+まずは，こいつが目的通りであることを見ておく．constraint として，
+$Ax \geq b$ が入っていないので，(\ref{relaxed_LP}) の解は当然のごとくこの制約を
+満たす必要はない．
+しかし，(\ref{relaxed_LP})において $Ax \geq b$をやぶると大変なことになる．
+具体的には，$y\geq 0$ であるため，この制約を破ると objective 最小化，という意味では
+不利である．
+ということで (\ref{relaxed_LP}) を解くと
+「制約を完全には満たしていないが，そこそこ満たした良い感じの解」が得られることが期待されるわけである．
+
+さて，この緩和した問題であるが，以下の性質がある．
+$x^*$ を (\ref{geq_LP}) の最適解だとすると，当然 $Ax^*\geq b$,
+$x^* \geq 0$ に気をつければ，
+\begin{eqnarray}
+  c^Tx^{*} \geq c^Tx^{*} - y^T(Ax^{*} - b) \geq \min_{x, x\geq 0}(c^Tx - y^T(Ax - b))
+\end{eqnarray}
+という不等式を導くことができる．よって，(\ref{relaxed_LP}) の最適解の objective は
+(\ref{geq_LP})の最適解の objective 以下である．
+この不等式自体は任意の $y\geq 0$で成立するので，実は以下が成立する．
+\begin{eqnarray}
+  c^Tx^{*} \geq \max_{y, y\geq 0}\min_{x, x\geq 0}(c^Tx - y^T(Ax - b))\ .
+  \label{LP_primal_dual}
+\end{eqnarray}
+この式の右辺をもっと変形してみよう．まず objective であるが，これは
+$(c - A^Ty)^T x + b^Ty$ と変形することができる．
+これの $\min_{x, x\geq 0}$ を考えるが，
+$x$ については $x\geq 0$ 以外の制約がないことを考えると
+\begin{eqnarray}
+  \min_{x, x\geq0}(c - A^Ty) x + b^Ty =
+  \left\{
+  \begin{array}{l}
+    b^Ty\quad(c - A^Ty \geq 0)\nonumber\\
+    -\infty\quad (\exists i s.t. (c- A^Ty)_i  < 0)
+  \end{array}
+  \right.
+\end{eqnarray}
+となる．続いて (\ref{LP_primal_dual})式の右辺の $\max_{y}$ を考えていくが，
+上記で $c - A^Ty < 0$ のケースでは $-\infty$ に飛ぶことを考えると
+$\max$ では $c - A^Ty\geq 0$ のケースのみを考えておけば十分である．
+よって(\ref{LP_primal_dual})式の右辺は
+\begin{eqnarray}
+  &\max_{y}&\ b^Ty\nonumber\\
+  &s.t.&\ A^Ty \leq c\nonumber\\
+  &\ &\ y\geq 0, y \in \mathbb{R}^m
+  \label{geq_dual_LP}
+\end{eqnarray}
+と変形される．これが(\ref{geq_LP}) に対する dual problem と言われる問題で，
+この導出からもわかるように，dualの最適解の objective は
+元問題(primal problem と呼ばれる)の最適解の objective 以下の値をとる．
+
+ここまでは(\ref{geq_LP}) のように，不等式制約を考えてきたが，
+LP の基本形である等号制約な場合，つまり，
+\begin{eqnarray}
+  &\min_{x}&\ c^Tx\nonumber\\
+  &s.t.&\ Ax = b \nonumber\\
+  &\ &\ x\geq 0, x \in \mathbb{R}^n
+  \label{general_LP}
+\end{eqnarray}
+であっても同じように dual の問題を考えることができる．導出は簡単で，
+$Ax = b$を $Ax \geq b$ かつ $Ax \leq b$ と分けて計算すれば良く，
+結果は
+\begin{eqnarray}
+  &\max_{y}&\ b^Ty\nonumber\\
+  &s.t.&\ A^Ty \leq c, y \in \mathbb{R}^m
+  \label{dual_LP}
+\end{eqnarray}
+となる．
+
+この節の最後に，LP における強双対性を示す．ここまでの話，特に，
+(\ref{LP_primal_dual})式から分かるように，dual の最適解は primal の最適解以下である．
+しかし，実はもっと強いことが言えて，これは以下ではなくイコールである．以下ではそれを確認する．
+
+primal 側の最適な実行可能基底解を $x_B^* = B^{-1}b$, $x_N^* = 0$ とする．
+primal simplex の最適性条件から $c_N - N^TB^{-1 T}c_B \geq 0$ である．
+これらの $B, N$ を使って，dual の解らしきものとして，$y = B^{-1 T} c_B$を考えてみよう．
+これは以下に見るように dual の constraint を満たしている．
+\begin{eqnarray}
+  A^T y =
+  \left[
+    \begin{array}{c}
+      B^T\nonumber\\
+      N^T
+    \end{array}
+    \right]B^{-1T}c_B
+  \leq
+  \left(
+  \begin{array}{c}
+    c_B\nonumber\\
+    c_N
+  \end{array}
+  \right)\ .
+\end{eqnarray}
+よって，$y = B^{-1 T}c_B$ は dual の実行可能解である．
+ということで，primal 側の最適解を絡めた以下の不等式が成立する．
+\begin{eqnarray}
+  c^T x^* = c_B^T x^*_B = c_B^TB^{-1}b = (B^{-1 T}c_B) b = b^Ty \leq \max_{y, dual\ constraint} b^Ty\ .
+\end{eqnarray}
+よって (\ref{LP_primal_dual})式の逆の不等式が言える．よって実はイコールが成立する．
+
+\section{dual simplex method}
+無事 dual を導入できたので，この章では，dual simplex 法について紹介する．
+まず，dual simplex を説明するために必要な用語(simplex の時にも出てきた 実行可能基底解だとかそういった話)をしたのちに，
+dual simplex method 御本尊を紹介する．
+
+\subsection{用語}
+simplex の時と同様に基底解などについてお話する．
+まず，イコール制約でないと何かと面倒なので，(\ref{dual_LP})に slack を入れて
+\begin{eqnarray}
+  &\max_{y}&\ b^Ty\nonumber\\
+  &s.t.&\ A^Ty + s = c, \nonumber\\
+  &\ & s\geq 0, y \in \mathbb{R}^m,\ s \in\mathbb{R}^n
+\end{eqnarray}
+という形に変えて考える．
+
+この問題の基底解というところからお話を始める．上記制約式は $n$ 本あり，
+変数の数は合計で $n + m$ 個ある．よって $n + m$ 個の中から
+$m$ 個の変数を $0$ とおけば，基本的には $A^Ty + s  = c$ という方程式を解くことができる．
+特に，ここでは，$s$ にある $n$ 個の変数の中から $m$ 個を選び，それが $0$ となるような解を考える．そのような解を双対基底解と呼ぶ．
+勿論そのような双対基底解は $s \geq 0$ を満たすとは限らない．simplex の時と同様に
+双対基底解でかつこの制約も満たすものを
+双対実行可能基底解と呼ぶことにする．
+
+と言葉で説明してもさっぱりなので，やっぱり数式を用いて述べておく．
+$s$ にある $n$ 個の変数 index を $m$ 個と $n - m$ 個のグループに分ける．
+前者を $B_{index}$, 後者を $N_{index}$ と書くことにしよう．
+このとき，$A$ の列($A^T$ の行というべきかも)を $B_{index}\rightarrow N_{index}$
+の順番に並び替えて $A = [B|N]$ と分割する．
+同様に並び替えることで，$s$ も $s = [s_B|s_N]^T$ と並び替え，
+さらに$c$ も $c = [c_B|c_N]^T$ と並び替える．
+すると制約式 $A^T y + s = c$ は
+\begin{eqnarray}
+  \left[
+    \begin{array}{c}
+      B^T\nonumber\\
+      \hline
+      N^T
+    \end{array}
+    \right]y +
+  \left[
+    \begin{array}{c}
+      s_B\nonumber\\
+      \hline
+      s_N
+    \end{array}
+    \right] =
+  \left[
+    \begin{array}{c}
+      c_B\nonumber\\
+      \hline
+      c_N
+    \end{array}
+    \right]  
+\end{eqnarray}
+となる．ここで，$s_B$ だけを右辺に持っていて左辺をまとめて書くと以下のように書き直すことができる．
+\begin{eqnarray}
+  \left[
+    \begin{array}{c|c}
+      B^T&0\nonumber\\
+      \hline
+      N^T&I
+    \end{array}
+    \right]
+  \left[
+    \begin{array}{c}
+      y\nonumber\\
+      \hline
+      s_N
+    \end{array}
+    \right]  
+  =
+  \left[
+    \begin{array}{c}
+      c_B\nonumber\\
+      \hline
+      c_N
+    \end{array}
+    \right] -
+    \left[
+    \begin{array}{c}
+      s_B\nonumber\\
+      \hline
+      0
+    \end{array}
+    \right]
+\end{eqnarray}
+ここで 最初の$n\times n$ 行列の逆行列は
+\begin{eqnarray}
+    \left[
+    \begin{array}{c|c}
+      B^T&0\nonumber\\
+      \hline
+      N^T&I
+    \end{array}
+    \right]^{-1} =
+    \left[
+    \begin{array}{c|c}
+      B^{-1 T}&0\nonumber\\
+      \hline
+      -N^TB^{-1 T}&I
+    \end{array}
+    \right]    
+\end{eqnarray}
+なので，両辺にかけてやれば，
+\begin{eqnarray}
+    \left[
+    \begin{array}{c}
+      y\nonumber\\
+      \hline
+      s_N
+    \end{array}
+    \right]  
+  =
+  \left[
+    \begin{array}{c}
+      B^{-1 T}c_B\nonumber\\
+      \hline
+      c_N - N^T B^{-1 T}c_B
+    \end{array}
+    \right] -
+    \left[
+    \begin{array}{c}
+      B^{-1T}s_B\nonumber\\
+      \hline
+      -N^TB^{-1 T} s_B
+    \end{array}
+    \right]
+    \label{modified_const}
+\end{eqnarray}
+となる．よって，双対基底解 $s_B = 0$ が双対実行可能基底解となる条件 $s_N\geq 0$より
+\begin{eqnarray}
+  \rho \geq 0\ ,
+\end{eqnarray}
+where 
+\begin{eqnarray}
+  \rho = c_N - N^T B^{-1 T} c_B
+  \label{def_rho}
+\end{eqnarray}
+となる\footnote{これは simplex 法の optimality condition と一致している．}．
+
+\subsection{dual simplex}
+dual simplex について紹介する．ここまでで紹介した用語を使うと，
+simplex 同様，dual simplex も input を双対実行可能基底解とし，
+output を最適な双対実行可能基底解を出力する algorithm である．
+以下でそれを見ていく．
+
+\subsubsection{最適性条件と pricing}
+まずは最適性条件を確認する．ある双対実行可能基底解とそれに関する
+$B_{index}$,$N_{index}$が与えられたとする．
+このとき，その解の周りで $[s_B|0]^T$ を動かすとする．
+その場合，dual problem (\ref{dual_LP})は(\ref{modified_const})式を用いて
+\begin{eqnarray}
+  &\max_{s_B}&\  b^TB^{-1T}c_B - b^TB^{-1 T} s_B\nonumber\\
+  &s.t.&\ \rho + N^TB^{-1 T}w_B \geq 0, s_B\geq 0
+\end{eqnarray}
+となる．よって，$s_B\geq 0$ なので，maximize であることに注意をすれば，optimality condition は
+\begin{eqnarray}
+  b^{T}B^{-1 T}\geq 0 \Leftrightarrow B^{-1}b\geq 0
+\end{eqnarray}
+となる\footnote{これは primal feasibility と同じ．}．
+
+逆に言えば，$(B^{-1 T} b)_i < 0 $ となる $i$ が存在する場合，
+条件の範囲内で，objective を増加させることが可能である．
+以下では simplex 同様，そのような $i$ の中から一つだけ選び，
+それを $k$ として，$k$ に関する local な問題を考えていく．
+このような $k$ の選択を dual pricingとか dual pricing rule とか呼ぶ
+\footnote{$k$ の選び方については，simplex 同様，様々なルール，つまり pricing rule がある．}．
+
+\subsubsection{ratio test}
+pricing で $k$ が一つ選ばれたとする．
+そうすると $s_B$ の $k$ 成分だけ値を持った
+以下の local な問題を定義することができる．
+$(s_B)_k = \xi$ と書けば
+\begin{eqnarray}
+  &\max_{\xi}&\  b^TB^{-1T}c_B + |(B^{-1}b)_k| \xi\nonumber\\
+  &s.t.&\ \rho_j + \sum_{\ell}(N^T)_{j\ell}(B^{-1 T})_{\ell k}\xi \geq 0 \ (j\in N_{index}) \nonumber\\
+  &\ &\xi\geq 0
+\end{eqnarray}
+となる．この local な問題であるが，simplex の時と同様，簡単に解くことが可能である．
+というのも，objective を見ると $\xi$ が大きければ大きほど良いので，
+条件の範囲内で $\xi$ を大きくすれば良いからである．ではどれだけ大きくして良いのか，というと，
+\begin{eqnarray}
+  \alpha_j = \sum_{\ell}(N^T)_{j\ell}(B^{-1 T})_{\ell k}
+  \label{def_alpha}
+\end{eqnarray}
+と定義してやれば，条件より以下の $\theta$ まで大きくすることが可能であることが分かる．
+\begin{eqnarray}
+  j_{min} = \arg \min_j\left[\frac{\rho_j}{|\alpha_j|}|\alpha_j < 0\right], \theta = \frac{\rho_{j_{min}}}{|\alpha_{j_{min}}|}\ .
+  \label{i_min}
+\end{eqnarray}
+このような $j_{min}$ の選択を dual ratio test と呼ばれる．
+ちなみに，この ratio test の際，
+もし $\alpha \geq 0$ であった場合，いくらでも $\xi$ を大きくすることができる．
+よって，この場合は unbounded である．
+
+上述したように，$\xi = \theta$ のときが local な問題の最適解である．
+ではこの最適解では，$s$ がどうなっているのかというと，
+まず，$s^{new}_j = 0 (j \in B_{index}\backslash \{k\})$, $s^{new}_k = \theta$である．
+さらに，
+$s_N = \rho + N^TB^{-1T}s_B$ という関係から
+$s^{new}_j = \rho_j + \alpha_j \theta (j\in N_{index})$ となる．
+特に，$s^{new}_{j_{min}} = 0$ となる．
+よって，この local な最適化問題の答えは，
+$B^{new}_{index} = (B_{index}\backslash \{k\})\cup \{j_{min}\}$,
+$N^{new}_{index} = (N_{index}\backslash \{j_{min}\})\cup \{k\}$
+とする双対実行可能基底解である．よって，この新しい双対実行可能基底解をベースとして，
+pricing を行えば，新しく local な問題も立てることができる，
+といった具合に iterative に objective を上げていくことができる．
+勿論，このような local search でうまくいく理由は今回の問題が linear であるためである．
+
+\subsubsection{algorithm}
+以上をまとめると，以下のような algorithm になる．
+\begin{algorithm}
+\begin{algorithmic}
+  \REQUIRE 双対実行可能基底解
+  \ENSURE 最適解
+
+  現在の双対実行可能規定解 $\leftarrow$ input 双対実行可能基底解
+  \LOOP
+  \STATE 現在の双対実行可能基底解に基づいて$B^{-1}b$ を計算する．
+  \IF{$B^{-1}b > 0$}
+  \STATE return 現在の双対実行可能基底解解
+  \ENDIF
+  \STATE -- pricing --
+  \STATE なんらかのルールで $B^{-1}b$ がnegative な index から $k$ を選ぶ．
+  \STATE -- ratio test --
+  \STATE (\ref{def_rho})と(\ref{def_alpha})を計算
+  \STATE (\ref{i_min})によって $B_{index}\rightarrow N_{index}$となる変数 $j_{min}$を選択
+  \STATE -- pivot --
+  \STATE $k$, $j_{min}$ を基に現在の双対実行可能基底解を更新
+  \ENDLOOP
+\end{algorithmic}
+\end{algorithm}
+
+\section{dual simplex の特徴}
+dual simplex には simplex 法には無い良い特徴がある．
+Bound Flipping Ratio Test など ratio test も工夫できるといった特徴もあるが，
+ここでは，warm start についてお話をする．
+これは，「LP を解いた後に，不等式制約を追加した場合に，古い問題の最適解から新しい問題の探索をできる」という性質である．
+これは simplex 法にはない特徴である．というのも，simplex 法を使った場合，
+新しい制約を加えた段階で古い問題の最適解は primal の意味の実行可能性が保証できず，
+結局二段階 simplex を一から解く必要が生じるためである．
+ところが，以下に見るように
+古い問題の最適解は新しい問題の双対実行可能基底解になっている．
+そのため dual simplex の場合はこのような warm start が可能である．
+
+
+primal で
+\begin{eqnarray}
+  &\min_{x}&\ c^Tx\nonumber\\
+  &s.t.&\ Ax  = b, x\geq 0, x \in \mathbb{R}^n
+  \label{old_LP}
+\end{eqnarray}
+と書かれる問題を考える．勿論これの dual の問題は
+\begin{eqnarray}
+  &\max_{y}&\ b^Ty\nonumber\\
+  &s.t.&\ A^Ty  + s = c, y \in \mathbb{R}^m, s \geq 0
+  \label{old_dual_LP}
+\end{eqnarray}
+である．これの解を $y^{old*}, s^{old*}$ と書くことにし，
+これの基底 index 集合，非基底 index 集合を $B_{index}^{old}$，$N_{index}^{old}$と書くことにする．
+勿論 $s^{old*}_{j} = 0 (j \in B_{index}^{old})$ であるし，(\ref{modified_const})式を思えば，
+$y^{old*} = B^{old}{}^{-1 T}c_{B^{old}}$, $s^{old*}_{j}=\rho^{old} = c_{N^{old}} - N^{old}{}^{T} B^{old}{}^{-1 T}c_{B^{old}} \geq 0 (j \in N_{index}^{old})$
+である．
+
+このとき，今回の問題が解き終わった後に，primal 側に不等式制約 $a^Tx \leq b^{\prime}$ を加えた問題を考える．つまり，
+\begin{eqnarray}
+  &\min_{x}&\ c^Tx + 0\times w\nonumber\\
+  &s.t.&\ Ax = b \nonumber\\
+  &\ & a^Tx + w = b^{\prime}\nonumber\\
+  &\ &x\geq 0, w\geq 0, x \in \mathbb{R}^n w\in \mathbb{R}
+  \label{new_LP}
+\end{eqnarray}
+という問題を考える．ここに，$w$ は slack である．ということで，イコール制約に直すことまで考えると，
+制約が一つ，変数が一つ増えていることだけ述べておく．上記のままでも良いが，書くのが面倒なので，
+\begin{eqnarray}
+  {\bar x} = [x, w]^T, {\bar c} = [c, 0]^T, {\bar b} = [b, b^{\prime}]^T,
+  {\bar A} =
+  \left[
+    \begin{array}{c|c}
+      A&0\nonumber\\
+      \hline
+      a^T&1
+    \end{array}
+    \right]
+\end{eqnarray}
+を用意すれば，primal 側の問題は
+\begin{eqnarray}
+  &\min_{x}&\ {\bar c}^T{\bar x}\nonumber\\
+  &s.t.&\ {\bar A}{\bar x}  = {\bar b}, {\bar x}\geq 0, {\bar x} \in \mathbb{R}^{n+1}
+  \label{new_LP}
+\end{eqnarray}
+とかけるし，dual 側は
+\begin{eqnarray}
+  &\max_{{\bar y}}&\ {\bar b}^T{\bar y}\nonumber\\
+  &s.t.&\ {\bar A}^T{\bar y}  + {\bar s} = {\bar c}, {\bar y} \in \mathbb{R}^{m+1}, {\bar s} \geq 0
+  \label{new_dual_LP}
+\end{eqnarray}
+と書ける．この書き方に習って，以下では，新しく追加した制約の index を $m + 1$ と書き，
+新しく追加した slack 変数に対応する index を $n + 1$ と書くことにする．
+
+少々前置きが長くなってしまったが，ここまで準備できれば，あとは計算をするだけで
+以下を示すことができる．「$B_{index}^{new} = B^{old}_{index} \cup \{n + 1\}$かつ
+  $N^{new}_{index} = N_{index}^{old}$に対応する基底解は双対実行可能基底解である．
+  もう少し具体的には ${\bar y} = [y^{old *}, 0]^T$, $s_{B^{new}} = 0$, $s_{N^{new}} = s_{N^{old}}$ は
+双対実行可能である．」つまり，新しく加わった slack を基底に入れれば，双対実行可能性は保持される，という訳である．
+
+証明は超簡単．(\ref{modified_const})式を使ってただ計算するだけ．
+$B^{newe}_{index}$，$N^{new}_{index}$の選び方から，${\bar A}$ を分割すると，
+\begin{eqnarray}
+  B^{new} = \left[
+    \begin{array}{c|c}
+      B^{old}&0\nonumber\\
+      \hline
+      a_{B^{old}}^T&1
+    \end{array}
+    \right],\
+  N^{new} = \left[
+    \begin{array}{c}
+      N^{old}\nonumber\\
+      \hline
+      a_{N^{old}}^T
+    \end{array}
+    \right]  
+\end{eqnarray}
+となるが，(\ref{modified_const})式に必要になるものを考えると
+\begin{eqnarray}
+  B^{new}{}^{-1 T} = \left[
+    \begin{array}{c|c}
+      B^{old}{}^{-1 T}&-B^{old}{}^{-1 T}a_{B^{old}}\nonumber\\
+      \hline
+      0&1
+    \end{array}
+    \right],\
+  N^{new}{}^{T} = \left[
+    \begin{array}{c|c}
+      N^{old}{}^{T}|a_{N^{old}}
+    \end{array}
+    \right]  
+\end{eqnarray}
+となっている．これをもとに $B_{index}^{new}$, $N^{new}_{index}$に対応する
+基底解(つまり，${\bar s}_{B^{new}} = 0$な解)を (\ref{modified_const})式をベースに計算する．
+まず $y$ であるが，${\bar c}_{B^{new}} = [c_{B^{old}}, 0]^T$であることに注意すると，
+\begin{eqnarray}
+  {\bar y} = B^{new}{}^{-1 T}{\bar c}_{B^{new}} = [B^{-1 T}c_{B^{old}}, 0]^T = [y^{old *}, 0]^T
+\end{eqnarray}
+となる．そして，$c_{N^{new}} = c_{N^{old}}$に注意すれば，
+\begin{eqnarray}
+  {\bar s}_{N^{new}} &=& c_{N^{new}} - N^{new}{}^T B^{new}{}^{-1 T}c_{B^{new}}\nonumber\\
+  &=& c_{N^{old}} -
+  \left[
+    \begin{array}{c|c}
+      N^{old}{}^{T}|a_{N^{old}}
+    \end{array}
+    \right]
+  \left[
+    \begin{array}{c}
+      B^{old}{}^{-1 T}c_{B^{old}}\\
+      \hline
+      0
+    \end{array}
+    \right]\nonumber\\
+  &=& c_{N^{old}} - N^{old}{}^{T}B^{old}{}^{-1 T} c_{B^{old}} \nonumber\\
+  &=& s^{old*}_{N^{old}} \geq 0
+\end{eqnarray}
+となっているので，$B_{index}^{new}$, $N^{new}_{index}$に対応する基底解は双対実行可能であり，
+${\bar y} = [y^{old*}, 0]^T$, ${\bar s}_{B^{new}} = 0$, ${\bar s}_{N^{new}} = s^{old*}_{N^{old}}$が
+その双対実行可能基底解である．
+
+このように，dual simplex 法は，新しい制約を加えても，
+古い問題の最適解が新しい問題の双対実行可能基底解になっているので，
+古い問題の最適解を input として新しい問題を解くことが可能である．
+このような解き方を warm start と呼ばれ，
+これは simplex 法ではできず dual simplex 特有の方法だと言える．
+
+\section{まとめ}
+ここでは dual simplex を紹介した．この algorithm は，最後にも述べたように，
+制約式の追加して繰り返して解く際に非常に有用な algorithm となっている．
+そういった特徴があるため，例えば branch and bound では利用されている．
+また，そのほかの場面でもこのような特徴は活かせる可能性があるので，
+結構重要な algorithm だと言える．
+
+\end{document}
